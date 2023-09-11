@@ -1,0 +1,4 @@
+#define MY_SSID "ssid"
+#define MY_WIFI_PASSWORD "pwd"
+#define RPI_ADDRESS "add.dr.e.ss"
+#define RPI_PORT 5483
