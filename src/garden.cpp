@@ -4,7 +4,7 @@
 //DOIT ESP32 DEVKIT V1
 //define MY_SSID, MY_WIFI_PASSWORD, RPI_ADDRESS, RPI_PORT
 #include "passwd/passwd.h"
-#include "Protocol/Protocol.h"
+#include "Protocol/Protocol.h
 
 //#define DEBUG
 #define ENABLE_DEBUGGING
@@ -25,7 +25,7 @@ const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
 
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
 
-#define NODE_ID 2
+#define NODE_ID 1
 
 #if NODE_ID == 2
 const int NumSensors = 3;
