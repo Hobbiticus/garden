@@ -5,6 +5,13 @@
 //define MY_SSID, MY_WIFI_PASSWORD, RPI_ADDRESS, RPI_PORT
 #include "passwd/passwd.h"
 #include "Protocol/Protocol.h"
+#include "MQTTDevice.h"
+#include "MQTTSensor.h"
+#include "MQTT.h"
+
+
+WiFiClient mqttWifi;
+MQTTClient mqtt(256);
 
 //#define DEBUG
 #define ENABLE_DEBUGGING
@@ -26,7 +33,8 @@ const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
 #define NODE_ID 1
 
-#ifdef NODE_ID == 1
+#if NODE_ID == 1
+MQTTDevice GardenDevice(mqtt, "Vegetable Garden", "vegetable_garden");
 
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
@@ -51,6 +59,8 @@ float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 
 
 #elif NODE_ID == 2
+MQTTDevice GardenDevice(mqtt, "Perenial Garden", "perenial_garden");
+
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
 
@@ -71,6 +81,7 @@ float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 };
 #endif
 
+MQTTSensor BatterySensor(GardenDevice, "Battery", "battery");
 
 
 #define BATTERY_SENSE_PIN 36
@@ -84,8 +95,6 @@ const int SENSOR_PINS[5] = { 39, 34, 35, 32, 33 };
 #define ERROR_BAD_SENSOR 2
 #define ERROR_OUT_OF_WATER 3
 
-const int MinErrorRepeatTimeMS = 60*60*24 * 1000;
-RTC_DATA_ATTR unsigned int LastErrorSentTimesMS[4] = { 0, 0, 0, 0 };
 RTC_DATA_ATTR unsigned int CurrentTimeMS = 0;
 RTC_DATA_ATTR int LastWateredDay = -1;
 
@@ -279,37 +288,24 @@ void SendPumpEvent(unsigned char on)
   SocketSend(buff, bufferLen);
 }
 
-bool SendErrorMessage(int error, const char* message)
+void SendErrorMessage(int error, const char* message)
 {
-  if (LastErrorSentTimesMS[error] != 0)
-  {
-    //let's not spam the same error over and over
-    unsigned int now = GetTimeMS();
-    if (now - LastErrorSentTimesMS[error] < MinErrorRepeatTimeMS)
-    {
-      //DebugPrint("SKIPPING ERROR\n");
-      //delay(50);
-      return true;
-    }
-  }
+  //TODO: implement this
   DebugPrint("ERROR: " + String(message) + "\n");
 
-  ErrorMessage msg;
-  msg.m_ID = NODE_ID;
-  strcpy(msg.m_Message, message);
-  unsigned char buffer[300];
-  unsigned int bufferLength = msg.Serialize(buffer, sizeof(buffer));
+  // ErrorMessage msg;
+  // msg.m_ID = NODE_ID;
+  // strcpy(msg.m_Message, message);
+  // unsigned char buffer[300];
+  // unsigned int bufferLength = msg.Serialize(buffer, sizeof(buffer));
 
-  if (!SocketSend(buffer, bufferLength))
-    return false;
-  
-  LastErrorSentTimesMS[error] = GetTimeMS();
-  return true;
+  // if (!SocketSend(buffer, bufferLength))
+  //   return;
 }
 
 void ClearError(int error)
 {
-  LastErrorSentTimesMS[error] = 0;
+  //TODO: implement this
 }
 
 void TakeMoistureReadings(unsigned short* readings)
@@ -373,6 +369,8 @@ void setup() {
   }
   Serial.println("Connected to WiFi!");
   DebugPrint("Setup complete\n");
+
+  BatterySensor.Init("voltage", "V");
 
   waitForSync();
   myTZ.setLocation("America/New_York");
@@ -516,14 +514,17 @@ void loop()
 {
   DebugPrint("Entered loop\n");
   events(); //ezTime events()
+  mqtt.loop();
 
   DoTheThings();
 
+  mqtt.loop();
   DebugPrint("going to sleep\n");
   delay(50);
   //update our time tracker
   CurrentTimeMS += millis() - bootTime + DeepSleepTimeUS / 1000;
   //go to sleep
+  mqtt.disconnect();
   esp_sleep_enable_timer_wakeup(DeepSleepTimeUS);
   esp_deep_sleep_start();
 }
