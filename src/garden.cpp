@@ -24,7 +24,6 @@ const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
 
 
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
-
 #define NODE_ID 1
 
 #ifdef NODE_ID == 1
@@ -76,9 +75,9 @@ float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 
 #define BATTERY_SENSE_PIN 36
 const int SENSOR_PINS[5] = { 39, 34, 35, 32, 33 };
-#define WATER_LEVEL_PIN 21
-#define SENSOR_POWER_PIN 22
-#define PUMP_POWER_PIN 23
+#define WATER_LEVEL_PIN 23
+#define SENSOR_POWER_PIN 14
+#define PUMP_POWER_PIN 13
 
 //errors
 #define ERROR_NO_SENSORS 1
