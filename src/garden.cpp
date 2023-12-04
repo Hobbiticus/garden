@@ -226,66 +226,21 @@ float ReadBatteryVoltage()
   return vin;
 }
 
-bool SocketSend(unsigned char* data, unsigned int dataLen)
-{
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println("WiFi is not connected - cannot send over socket");
-    return false;
-  }
-
-  WiFiClient client;
-  bool connected = client.connect(RPI_ADDRESS, RPI_PORT);
-  if (!connected)
-    return false;
-
-  client.write(data, dataLen);
-  client.flush();
-  client.stop();
-  delay(50); //seems necessary for the data to actually flush out to the socket
-  return true;
-}
-
 void SendStartup()
 {
-  float vin = ReadBatteryVoltage();
-
-  unsigned char buff[64] = {0};
-
-  StartupEvent status;
-  status.m_ID = NODE_ID;
-  status.m_VoltageHundredths = (unsigned short)(vin * 100);
-  DebugPrint("VOLTAGE = " + String(status.m_VoltageHundredths) + "\n");
-  unsigned int bufferLen = status.Serialize(buff, sizeof(buff));
-
-  SocketSend(buff, bufferLen);
+  //TODO: implement this
 }
 
 void SendBatteryStatus()
 {
   float vin = ReadBatteryVoltage();
 
-  unsigned char buff[64] = {0};
-
-  BatteryStatus status;
-  status.m_ID = NODE_ID;
-  status.m_VoltageHundredths = (unsigned short)(vin * 100);
-  DebugPrint("VOLTAGE = " + String(status.m_VoltageHundredths) + "\n");
-  unsigned int bufferLen = status.Serialize(buff, sizeof(buff));
-  
-  SocketSend(buff, bufferLen);
+  BatterySensor.PublishValue(String(vin, 2));
 }
 
 void SendPumpEvent(unsigned char on)
 {
-  unsigned char buff[64] = {0};
-
-  SumpEvent status;
-  status.m_ID = NODE_ID;
-  status.m_On = on;
-  unsigned int bufferLen = status.Serialize(buff, sizeof(buff));
-  
-  SocketSend(buff, bufferLen);
+  //TODO: implement this
 }
 
 void SendErrorMessage(int error, const char* message)
@@ -305,7 +260,7 @@ void SendErrorMessage(int error, const char* message)
 
 void ClearError(int error)
 {
-  //TODO: implement this
+  //TODO: implement this (maybe not)
 }
 
 void TakeMoistureReadings(unsigned short* readings)
@@ -332,14 +287,7 @@ void TakeMoistureReadings(unsigned short* readings)
 
 void SendMoistureReadings(unsigned short* readings)
 {
-  MoistureReadings msg;
-  msg.m_ID = NODE_ID;
-  memcpy(msg.m_Readings, readings, MoistureReadings::MaxReadings * sizeof(unsigned short));
-
-  unsigned char buffer[300];
-  unsigned int bufferLength = msg.Serialize(buffer, sizeof(buffer));
-
-  SocketSend(buffer, bufferLength);
+  //TODO: implement this
 }
 
 //===========================================================================================================================
@@ -380,8 +328,7 @@ void setup() {
 
   if (wakeup_reason < 1 || wakeup_reason > 5)
     SendStartup();
-  else
-    SendBatteryStatus();
+  SendBatteryStatus();
   DebugPrint("Setup actually complete\n");
   DebugPrint("Boot time = " + String(bootTime) + "; now = " + String(GetTimeMS()) + "\n");
 }
@@ -508,6 +455,8 @@ void DoTheThings()
   //update the moisture after the pumping is done
   TakeMoistureReadings(readings);
   SendMoistureReadings(readings);
+  //send the battery status too since we probably drained it pretty good
+  SendBatteryStatus();
 }
 
 void loop()
