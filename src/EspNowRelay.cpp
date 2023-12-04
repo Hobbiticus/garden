@@ -1,6 +1,6 @@
 #include "EspNowRelay.h"
 #include <WiFi.h>
-#include "../../Relay-EspNow/include/NowMessages.h"
+#include "../../ESP32Relay/Relay-EspNow/include/NowMessages.h"
 #include <set>
 
 static void OnDataRecv(const uint8_t * mac, const uint8_t *incomingData, int len);

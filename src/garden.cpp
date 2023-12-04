@@ -4,7 +4,7 @@
 //DOIT ESP32 DEVKIT V1
 //define MY_SSID, MY_WIFI_PASSWORD, RPI_ADDRESS, RPI_PORT
 #include "passwd/passwd.h"
-#include "Protocol/Protocol.h
+#include "Protocol/Protocol.h"
 
 //#define DEBUG
 #define ENABLE_DEBUGGING
@@ -27,7 +27,31 @@ const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
 
 #define NODE_ID 1
 
-#if NODE_ID == 2
+#ifdef NODE_ID == 1
+
+const int NumSensors = 3;
+const int VoltageCalibrationTableSize = 6;
+
+//TODO: enter correct R values here - this is from node2
+float R1 = 255.8;//300.0;
+float R2 = 170.5;//200.0;
+float VIN = 3.3; //TODO: calibrate this!
+
+//TODO: this has not been calibrated - this is from node 2
+//node 1
+//actual voltage, measured voltage
+float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
+{
+  { 5.0, 4.81 },
+  { 5.5, 5.32 },
+  { 6.0, 5.84 },
+  { 6.5, 6.38 },
+  { 7.0, 6.97 },
+  { 7.5, 7.72 }
+};
+
+
+#elif NODE_ID == 2
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
 
