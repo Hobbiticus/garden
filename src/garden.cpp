@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #include <ezTime.h>
 
@@ -8,7 +9,13 @@
 #include "MQTTDevice.h"
 #include "MQTTSensor.h"
 #include "MQTT.h"
+#include <ArduinoHA.h>
 
+
+WiFiClient client;
+HADevice device;
+HAMqtt hamqtt(client, device);
+HASensorNumber SensorBattery("battery", HABaseDeviceType::PrecisionP2);
 
 WiFiClient mqttWifi;
 MQTTClient mqtt(256);
@@ -34,7 +41,7 @@ const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
 #define NODE_ID 1
 
 #if NODE_ID == 1
-MQTTDevice GardenDevice(mqtt, "Vegetable Garden", "vegetable_garden");
+MQTTDevice GardenDevice(mqtt, "Test Garden", "test_garden");
 
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
@@ -236,6 +243,7 @@ void SendBatteryStatus()
   float vin = ReadBatteryVoltage();
 
   BatterySensor.PublishValue(String(vin, 2));
+  SensorBattery.setValue(vin);
 }
 
 void SendPumpEvent(unsigned char on)
@@ -318,6 +326,14 @@ void setup() {
   Serial.println("Connected to WiFi!");
   DebugPrint("Setup complete\n");
 
+  byte mac[6];
+  WiFi.macAddress(mac);
+  device.setUniqueId(mac, sizeof(mac));
+  device.setName("HATest Garden");
+  //device.setSoftwareVersion("1.0.0");
+
+  SensorBattery.setUnitOfMeasurement("V");
+  SensorBattery.setDeviceClass("voltage");
   BatterySensor.Init("voltage", "V");
 
   waitForSync();
@@ -464,6 +480,7 @@ void loop()
   DebugPrint("Entered loop\n");
   events(); //ezTime events()
   mqtt.loop();
+  hamqtt.loop();
 
   DoTheThings();
 
