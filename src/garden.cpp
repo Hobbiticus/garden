@@ -324,10 +324,6 @@ void setup() {
   device.setUniqueId(mac, sizeof(mac));
   device.setName(DEVICE_NAME);
 
-  Serial.println("Starting ha integration...");
-  bool result = hamqtt.begin("192.168.1.98", MQTT_USER, MQTT_PASSWORD);
-  Serial.printf("begin = %c\n", result ? 'Y' : 'N');
-
   BatterySensor.setUnitOfMeasurement("V");
   BatterySensor.setDeviceClass("voltage");
   StatusSensor.setName("Status");
@@ -335,6 +331,16 @@ void setup() {
   LastPumpTime.setName("Last Watered");
   PumpStatus.setName("Pump Status");
   WaterSensor.setName("Water Level");
+
+  //apparently we have to set this BEFORE we connect to HA because it likes to publish its state when it connects
+  bool haveWater = HaveWater();
+  Serial.printf("Initial water state = %s\n", haveWater ? "Good" : "Low");
+  WaterSensor.setCurrentState(haveWater); //we can use setCurrentState BEFORE we are connected and it will publish the correct state when we connect
+
+  Serial.println("Starting ha integration...");
+  bool result = hamqtt.begin("192.168.1.98", MQTT_USER, MQTT_PASSWORD);
+  Serial.printf("begin = %c\n", result ? 'Y' : 'N');
+
   hamqtt.loop(); //apparently it helps to call this once BEFORE you start publishing (boot time was not publishing)
 
   waitForSync();
@@ -355,9 +361,8 @@ void setup() {
   //update our status
   SendBatteryStatus();
   bool haveError = false;
-  bool haveWater = HaveWater();
   WaterSensor.setState(haveWater);
-  if (!HaveWater())
+  if (!haveWater)
   {
     SendErrorMessage("Water is low");
     haveError = true;
@@ -453,6 +458,7 @@ void DoTheThings()
     //not enough water!
     DebugPrint("Want to water, but the water is empty\n");
     SendErrorMessage("Water is low");
+    WaterSensor.setState(false);
     return;
   }
 
@@ -493,6 +499,15 @@ void loop()
   events(); //ezTime events()
 
   hamqtt.loop();
+
+//-----
+  // SetPumpState(1);
+  // delay(1000);
+  // SetPumpState(0);
+  // delay(1000);
+  // return;
+//-----
+
   DoTheThings();
   hamqtt.loop();
 
