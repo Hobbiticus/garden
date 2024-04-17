@@ -16,43 +16,42 @@
 const int DeepSleepTimeUS = 10 * 1000000;
 const int PumpTimeMS = 10 * 1000;
 #else
-const int DeepSleepTimeUS = 15*60 * 1000000;
-const int PumpTimeMS = 5*60 * 1000;
+const int DeepSleepTimeUS = 15*60 * 1000000; //how long to go into deep sleep
+const int PumpTimeMS = 5*60 * 1000;          //how long to pump for
 #endif
 
 //higher MEASURED values are dryer, but we are inverting the readings so that higher REPORTED values are wetter
 //higher values are wetter
 const int MoistureThreshold = 2000;
-const int WaterAfterTime = 16 * 60 + 0; //hours + minutes (in minutes)
+const int WaterAfterTime = 8 * 60 + 0; //hours + minutes (in minutes)
+const int BatteryStatusIntervalWhilePumpingMS = 30 * 1000; //how often to report battery status while the pump is operating
 
 Timezone myTZ;
 
 #define NODE_ID 1
 
 #if NODE_ID == 1
-#define DEVICE_NAME "Test Garden"
-#define DEVICE_ID "test_garden"
+#define DEVICE_NAME "Vegetable Garden"
+#define DEVICE_ID "vegatable_garden"
 
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
 
-//TODO: enter correct R values here - this is from node2
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
-float R1 = 255.8;//300.0;
-float R2 = 170.5;//200.0;
+float R1 = 300.0;
+float R2 = 200.0;
 float VIN = 3.3; //TODO: calibrate this!
 
-//TODO: this has not been calibrated - this is from node 2
 //node 1
 //actual voltage, measured voltage
 float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 {
-  { 5.0, 4.81 },
-  { 5.5, 5.32 },
-  { 6.0, 5.84 },
-  { 6.5, 6.38 },
-  { 7.0, 6.97 },
-  { 7.5, 7.72 }
+  { 5.0, 4.72 },
+  { 5.5, 5.22 },
+  { 6.0, 5.73 },
+  { 6.5, 6.28 },
+  { 7.0, 6.90 },
+  { 7.5, 7.70 }
 };
 
 
@@ -62,11 +61,12 @@ float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
 
-float R1 = 255.8;//300.0;
-float R2 = 170.5;//200.0;
-float VIN = 3.3; //TODO: calibrate this!
+float R1 = 300.0;
+float R2 = 200.0;
+float VIN = 3.3;
 
 //node 2
+//TODO: calibrate this
 //actual voltage, measured voltage
 float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 {
@@ -80,8 +80,8 @@ float VoltageCalibrationTable[VoltageCalibrationTableSize][2] =
 #endif
 
 WiFiClient client;
-HADevice device;
-HAMqtt hamqtt(client, device);
+HADevice MyHADevice;
+HAMqtt hamqtt(client, MyHADevice);
 HASensorNumber BatterySensor(DEVICE_ID "_battery", HABaseDeviceType::PrecisionP2);
 HABinarySensor PumpStatus(DEVICE_ID "_pump_status");
 HABinarySensor WaterSensor(DEVICE_ID "_water_status");
@@ -238,7 +238,7 @@ void SendBatteryStatus()
   BatterySensor.setValue(vin);
 }
 
-void SetPumpState(unsigned char on)
+void SetPumpState(bool on)
 {
   if (on)
   {
@@ -321,8 +321,8 @@ void setup() {
 
   byte mac[6];
   WiFi.macAddress(mac);
-  device.setUniqueId(mac, sizeof(mac));
-  device.setName(DEVICE_NAME);
+  MyHADevice.setUniqueId(mac, sizeof(mac));
+  MyHADevice.setName(DEVICE_NAME);
 
   BatterySensor.setUnitOfMeasurement("V");
   BatterySensor.setDeviceClass("voltage");
@@ -343,6 +343,7 @@ void setup() {
 
   hamqtt.loop(); //apparently it helps to call this once BEFORE you start publishing (boot time was not publishing)
 
+  Serial.println("Waiting for time sync...");
   waitForSync();
   myTZ.setLocation("America/New_York");
 
@@ -375,6 +376,7 @@ void setup() {
   }
 }
 
+#ifdef ENABLE_MOISTURE_SENSING
 int ComputeAverageMoisture(unsigned short* readings)
 {
   int sum = 0;
@@ -418,6 +420,7 @@ int ComputeAverageMoisture(unsigned short* readings)
   DebugPrint("Average value = " + String(averageValue) + "\n");
   return averageValue;
 }
+#endif
 
 void DoTheThings()
 {
@@ -465,9 +468,11 @@ void DoTheThings()
   //turn on the pump for a bit!
   //send message to hub saying pump got turned on
   DebugPrint("Turning on pump\n");
-  SetPumpState(1);
+  SetPumpState(true);
   LastWateredDay = myTZ.dayOfYear();
-  for (int i = 0; i * 1000 < PumpTimeMS; i++)
+  unsigned long waterStartTime = millis();
+  unsigned long lastBatteryStatusTime = millis();
+  while (millis() - waterStartTime < PumpTimeMS)
   {
     //check to see if there is still water left
     if (digitalRead(WATER_LEVEL_PIN) == HIGH)
@@ -477,12 +482,15 @@ void DoTheThings()
       break;
     }
     //periodically send the battery status so we can see it draining while pumping
-    if ((i % 30) == 0)
+    if (millis() - lastBatteryStatusTime > BatteryStatusIntervalWhilePumpingMS)
+    {
       SendBatteryStatus();
+      lastBatteryStatusTime += BatteryStatusIntervalWhilePumpingMS;
+    }
     delay(1000);
   }
   DebugPrint("Turning off pump\n");
-  SetPumpState(0);
+  SetPumpState(false);
 
   //update the moisture after the pumping is done
 #ifdef ENABLE_MOISTURE_SENSING
@@ -501,9 +509,9 @@ void loop()
   hamqtt.loop();
 
 //-----
-  // SetPumpState(1);
+  // SetPumpState(true);
   // delay(1000);
-  // SetPumpState(0);
+  // SetPumpState(false);
   // delay(1000);
   // return;
 //-----
