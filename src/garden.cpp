@@ -32,7 +32,7 @@ Timezone myTZ;
 
 #if NODE_ID == 1
 #define DEVICE_NAME "Vegetable Garden"
-#define DEVICE_ID "vegatable_garden"
+#define DEVICE_ID "vegetable_garden"
 
 const int NumSensors = 3;
 const int VoltageCalibrationTableSize = 6;
@@ -87,7 +87,7 @@ HABinarySensor PumpStatus(DEVICE_ID "_pump_status");
 HABinarySensor WaterSensor(DEVICE_ID "_water_status");
 HASensor StatusSensor(DEVICE_ID "_status");
 HASensor BootTimeSensor(DEVICE_ID "_boot_time");
-HASensor LastPumpTime(DEVICE_ID "_last_pump_time");
+HASensor LastPumpTime(DEVICE_ID "_last_water");
 
 
 #define BATTERY_SENSE_PIN 36
@@ -240,16 +240,29 @@ void SendBatteryStatus()
 
 void SetPumpState(bool on)
 {
+  hamqtt.loop(); //trying to get last pump time to show up
   if (on)
   {
     digitalWrite(PUMP_POWER_PIN, HIGH);
-    LastPumpTime.setValue(myTZ.dateTime("Y/m/d H:i:s").c_str());
+    if (!LastPumpTime.setValue(myTZ.dateTime("Y/m/d H:i:s").c_str()))
+    {
+      Serial.println("Failed to set last water time, trying again...");
+      hamqtt.loop();
+      LastPumpTime.setValue(myTZ.dateTime("Y/m/d H:i:s").c_str());
+    }
   }
   else
   {
       digitalWrite(PUMP_POWER_PIN, LOW);
   }
-  PumpStatus.setState(on);
+  //this has failed before
+  while (!PumpStatus.setState(on))
+  {
+    Serial.println("Whoops! Failed to set pump state");
+    delay(100);
+    hamqtt.loop();
+  }
+  hamqtt.loop(); //trying to get last pump time to show up
 }
 
 void SendErrorMessage(const char* message)
@@ -324,6 +337,7 @@ void setup() {
   MyHADevice.setUniqueId(mac, sizeof(mac));
   MyHADevice.setName(DEVICE_NAME);
 
+  BatterySensor.setName("Voltage");
   BatterySensor.setUnitOfMeasurement("V");
   BatterySensor.setDeviceClass("voltage");
   StatusSensor.setName("Status");
