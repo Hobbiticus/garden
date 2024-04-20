@@ -17,7 +17,7 @@ const int DeepSleepTimeUS = 10 * 1000000;
 const int PumpTimeMS = 10 * 1000;
 #else
 const int DeepSleepTimeUS = 15*60 * 1000000; //how long to go into deep sleep
-const int PumpTimeMS = 5*60 * 1000;          //how long to pump for
+const int PumpTimeMS = 3*60 * 1000;          //how long to pump for
 #endif
 
 //higher MEASURED values are dryer, but we are inverting the readings so that higher REPORTED values are wetter
