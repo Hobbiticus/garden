@@ -10,7 +10,7 @@
 
 //#define DEBUG
 //#define ENABLE_DEBUGGING
-//#define ENABLE_MOISTURE_SENSING
+#define ENABLE_MOISTURE_SENSING
 
 #ifdef DEBUG
 const int DeepSleepTimeUS = 10 * 1000000;
@@ -20,9 +20,9 @@ const int DeepSleepTimeUS = 15*60 * 1000000; //how long to go into deep sleep
 const int PumpTimeMS = 3*60 * 1000;          //how long to pump for
 #endif
 
-//higher MEASURED values are dryer, but we are inverting the readings so that higher REPORTED values are wetter
+//NOTE: with the cheap meters, higher values are dryer - need to invert them
 //higher values are wetter
-const int MoistureThreshold = 2000;
+const int MoistureThreshold = 2000;  //TODO: set this!
 const int WaterAfterTime = 8 * 60 + 0; //hours + minutes (in minutes)
 const int BatteryStatusIntervalWhilePumpingMS = 30 * 1000; //how often to report battery status while the pump is operating
 
@@ -34,7 +34,7 @@ Timezone myTZ;
 #define DEVICE_NAME "Vegetable Garden"
 #define DEVICE_ID "vegetable_garden"
 
-const int NumSensors = 3;
+const int NumSensors = 1;
 const int VoltageCalibrationTableSize = 6;
 
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
@@ -88,6 +88,7 @@ HABinarySensor WaterSensor(DEVICE_ID "_water_status");
 HASensor StatusSensor(DEVICE_ID "_status");
 HASensor BootTimeSensor(DEVICE_ID "_boot_time");
 HASensor LastPumpTime(DEVICE_ID "_last_water");
+HASensorNumber MoistureSensor(DEVICE_ID "_moisture", HABaseDeviceType::PrecisionP2);
 
 
 #define BATTERY_SENSE_PIN 36
@@ -284,13 +285,13 @@ void TakeMoistureReadings(unsigned short* readings)
   DebugPrint("Sensors are on now\n");
 
   //wait for the sensors to power up
-  delay(1000);
+  delay(3000);
   DebugPrint("Delayed!\n");
 
   //take readings
   for (int i = 0; i < NumSensors; i++)
   {
-    readings[i] = 4095 - analogRead(SENSOR_PINS[i]);
+    readings[i] = analogRead(SENSOR_PINS[i]);
     DebugPrint("Sensor" + String(i) + " = " + String(readings[i]) + "\n");
   }
 
@@ -302,7 +303,12 @@ void TakeMoistureReadings(unsigned short* readings)
 
 void SendMoistureReadings(unsigned short* readings)
 {
-  //TODO: implement this
+  //just take the average (if there is more than one)
+  float val = 0;
+  for (int i = 0; i < NumSensors; i++)
+    val += readings[i];
+  val /= NumSensors;
+  MoistureSensor.setValue(val * 100.0f / 4095);
 }
 
 //===========================================================================================================================
@@ -345,6 +351,7 @@ void setup() {
   LastPumpTime.setName("Last Watered");
   PumpStatus.setName("Pump Status");
   WaterSensor.setName("Water Level");
+  MoistureSensor.setName("Moisture");
 
   //apparently we have to set this BEFORE we connect to HA because it likes to publish its state when it connects
   bool haveWater = HaveWater();
@@ -440,7 +447,7 @@ void DoTheThings()
 {
 #ifdef ENABLE_MOISTURE_SENSING
   //take moisture readings
-  unsigned short readings[MoistureReadings::MaxReadings] = {0};
+  unsigned short readings[NumSensors] = {0};
   TakeMoistureReadings(readings);
   SendMoistureReadings(readings);
 
