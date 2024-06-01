@@ -352,6 +352,8 @@ void setup() {
   PumpStatus.setName("Pump Status");
   WaterSensor.setName("Water Level");
   MoistureSensor.setName("Moisture");
+  MoistureSensor.setUnitOfMeasurement("%");
+  MoistureSensor.setDeviceClass("moisture");
 
   //apparently we have to set this BEFORE we connect to HA because it likes to publish its state when it connects
   bool haveWater = HaveWater();
@@ -365,7 +367,9 @@ void setup() {
   hamqtt.loop(); //apparently it helps to call this once BEFORE you start publishing (boot time was not publishing)
 
   Serial.println("Waiting for time sync...");
+  int startTime = millis();
   waitForSync();
+  Serial.printf("Sync took %d ms\n", (int)(millis() - startTime));
   myTZ.setLocation("America/New_York");
 
   esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
