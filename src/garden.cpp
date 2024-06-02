@@ -329,13 +329,19 @@ void setup() {
   digitalWrite(PUMP_POWER_PIN, LOW);
 
   //connect to WiFi
-  WiFi.begin(MY_SSID, MY_WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED)
+  while (true)
   {
-    delay(100);
+    Serial.println("Connecting to WiFi...");
+    WiFi.begin(MY_SSID, MY_WIFI_PASSWORD);
     Serial.println("Waiting for wifi to connect...");
+    uint8_t result = WiFi.waitForConnectResult();
+    Serial.printf("result = %hhu\n", result);
+    if (result == WL_CONNECTED)
+    {
+      Serial.println("Connected to WiFi!");
+      break;
+    }
   }
-  Serial.println("Connected to WiFi!");
   DebugPrint("Setup complete\n");
 
   byte mac[6];
