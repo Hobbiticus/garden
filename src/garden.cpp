@@ -17,7 +17,7 @@ const int DeepSleepTimeUS = 10 * 1000000;
 const int PumpTimeMS = 10 * 1000;
 #else
 const int DeepSleepTimeUS = 15*60 * 1000000; //how long to go into deep sleep
-const int PumpTimeMS = 3*60 * 1000;          //how long to pump for
+const int PumpTimeMS = 5*60 * 1000;          //how long to pump for
 #endif
 
 //NOTE: with the cheap meters, higher values are dryer - need to invert them
@@ -40,7 +40,7 @@ const int VoltageCalibrationTableSize = 6;
 //3 to 2 yields range 0-8.25V, battery should get to max 7.3
 float R1 = 300.0;
 float R2 = 200.0;
-float VIN = 3.3; //TODO: calibrate this!
+float VIN = 3.3;
 
 //node 1
 //actual voltage, measured voltage
@@ -117,6 +117,8 @@ WiFiClient DebugSocket;
 void DebugPrint(String str)
 {
   Serial.print(str);
+  Serial.flush();
+
 #ifdef ENABLE_DEBUGGING
   //reconnect if we're not connected
   if (!DebugSocket.connected())
@@ -244,7 +246,9 @@ void SetPumpState(bool on)
   hamqtt.loop(); //trying to get last pump time to show up
   if (on)
   {
+    DebugPrint("Really turning on pump\n");
     digitalWrite(PUMP_POWER_PIN, HIGH);
+    DebugPrint("Really turned on pump\n");
     if (!LastPumpTime.setValue(myTZ.dateTime("Y/m/d H:i:s").c_str()))
     {
       Serial.println("Failed to set last water time, trying again...");
@@ -341,6 +345,7 @@ void setup() {
       Serial.println("Connected to WiFi!");
       break;
     }
+    WiFi.disconnect(true);
   }
   DebugPrint("Setup complete\n");
 
