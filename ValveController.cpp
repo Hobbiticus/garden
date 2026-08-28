@@ -2,9 +2,16 @@
 #include "WIFI_Credentials.h"
 
 
-#define BOOST_PIN 19
-#define BUCK_PIN 18
-#define OPEN_PIN 17
+#define BOOST_PIN 25
+#define BUCK_PIN 26
+#define OPEN_PIN 27
+#define PUMP_ENABLE_PIN 12
+#define MOISTURE_SENSOR_DATA_PIN 35
+#define MOISTURE_SENSOR_SWITCH_PIN 32
+#define FLOAT_PIN 17
+//eventually...
+//#define LED_PIN 15
+//#define DEBUG_PIN 13
 
 const static unsigned long TransitionTimeMS = 50; // how long to stay in opening/closing states
 
